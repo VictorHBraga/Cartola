@@ -1,0 +1,111 @@
+import requests
+
+from google.colab import auth
+auth.authenticate_user()
+import gspread
+from oauth2client.client import GoogleCredentials
+gc = gspread.authorize(GoogleCredentials.get_application_default())
+
+planilha = gc.open('Cartola')
+page = planilha.sheet1
+
+url = 'https://api.cartolafc.globo.com/atletas/mercado'
+txt = requests.get(url).json()
+
+def main():
+    #CRIAR DICIONARIO
+    atletas = jogadores(txt)
+    dicionario = {}
+    for i in range(0, len(atletas)):
+        dicionario[atletas[i][0]] = atletas[i][1]
+
+
+    #ADICIONAR PONTUAÇÃO
+    for i in range(1, 39):
+        pontos = requests.get(f'https://api.cartolafc.globo.com/atletas/pontuados/{i}').json()
+        if len(pontos) == 1:
+            break
+        else:
+            pontos = pontos['atletas']
+            for codigo in pontos:
+                pontuacao = pontos[codigo]['pontuacao']
+                codigo = str(codigo)
+                if codigo in dicionario:
+                    dicionario[codigo] += [pontuacao]
+
+            for k in dicionario:
+                if len(dicionario[k]) < i+1:
+                    dicionario[k] += ['']
+
+    for k in dicionario:
+        jogos = 0
+        for i in range(5, len(dicionario[k])):
+            if dicionario[k][i] != '':
+                jogos += 1
+        dicionario[k][4] = jogos
+
+    for k in dicionario:
+        media = 0
+        for i in range(6, len(dicionario[k])):
+            if dicionario[k][i] != '':
+                media += int(dicionario[k][i])
+        if media == 0:
+            dicionario[k][5] = 0
+        else:
+            dicionario[k][5] = round(media/dicionario[k][4], 2)
+
+    planilha1(dicionario)
+    lista = converterlista(dicionario)
+    planilha2(lista)
+    
+    
+def planilha1(dicio):
+    '''(dicio) -> None
+    '''
+    planilha = gc.open('Cartola')
+    page = planilha.get_worksheet(0)
+    linhas = len(dicio)+1
+    col = 6
+
+    lista = page.range(1,1, linhas, col)
+    #print(lista)
+
+    aux = []
+    for i in dicio:
+        for k in range(0, 6):
+            aux += [dicio[i][k]]
+    #print(len(aux))
+    #print(len(lista))
+    for i in range(0, len(aux)):
+        lista[i].value = aux[i]
+        #print(lista[i])
+
+    page.update_cells(lista)
+
+    print('Dados Atualizados')
+
+def planilha2(lst):
+    '''(list) -> None
+    '''
+    planilha = gc.open('Cartola')
+    page = planilha.get_worksheet(1)
+    linhas = len(lst)+1
+    col = 6
+
+    lista = page.range(1,1, linhas, col)
+    #print(lista)
+
+    aux = []
+    for i in range(0, len(lst)):
+        for k in range(0, 6):
+            aux += [lst[i][k]]
+    #print(len(aux))
+    #print(len(lista))
+    for i in range(0, len(aux)):
+        lista[i].value = aux[i]
+        #print(lista[i])
+
+    page.update_cells(lista)
+
+    print('Pontos Atualizados')
+    
