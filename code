@@ -12,53 +12,6 @@ page = planilha.sheet1
 url = 'https://api.cartolafc.globo.com/atletas/mercado'
 txt = requests.get(url).json()
 
-def main():
-    #CRIAR DICIONARIO
-    atletas = jogadores(txt)
-    dicionario = {}
-    for i in range(0, len(atletas)):
-        dicionario[atletas[i][0]] = atletas[i][1]
-
-
-    #ADICIONAR PONTUAÇÃO
-    for i in range(1, 39):
-        pontos = requests.get(f'https://api.cartolafc.globo.com/atletas/pontuados/{i}').json()
-        if len(pontos) == 1:
-            break
-        else:
-            pontos = pontos['atletas']
-            for codigo in pontos:
-                pontuacao = pontos[codigo]['pontuacao']
-                codigo = str(codigo)
-                if codigo in dicionario:
-                    dicionario[codigo] += [pontuacao]
-
-            for k in dicionario:
-                if len(dicionario[k]) < i+1:
-                    dicionario[k] += ['']
-
-    for k in dicionario:
-        jogos = 0
-        for i in range(5, len(dicionario[k])):
-            if dicionario[k][i] != '':
-                jogos += 1
-        dicionario[k][4] = jogos
-
-    for k in dicionario:
-        media = 0
-        for i in range(6, len(dicionario[k])):
-            if dicionario[k][i] != '':
-                media += int(dicionario[k][i])
-        if media == 0:
-            dicionario[k][5] = 0
-        else:
-            dicionario[k][5] = round(media/dicionario[k][4], 2)
-
-    planilha1(dicionario)
-    lista = converterlista(dicionario)
-    planilha2(lista)
-    
-    
 def planilha1(dicio):
     '''(dicio) -> None
     '''
@@ -109,3 +62,116 @@ def planilha2(lst):
 
     print('Pontos Atualizados')
     
+
+def idposicoes(n):
+    '''(str) -> list
+    '''
+    lista = ['', 'Goleiro', 'Lateral', 'Zagueiro', 'Meia', 'Atacante', 'Técnico']
+    return lista[n]
+
+
+def jogadores(txt):
+    '''(str) -> list
+    '''
+    jogadores = txt['atletas']
+    lista_jogadores = []
+    for i in range(0, len(jogadores)):
+        dicio = jogadores[i]
+        nome = dicio['apelido']
+        id_jogador = dicio['atleta_id']
+        id_clube = str(dicio['clube_id'])
+        cartoletas = dicio['preco_num']
+        posicao = dicio['posicao_id']
+        lista_jogadores += [[str(id_jogador), [nome,  clube(id_clube), idposicoes(posicao), cartoletas, '', '']]]
+
+    return lista_jogadores
+
+
+def clube(n):
+    '''(str) -> lst
+    '''
+    clubes = txt['clubes']
+    return clubes[n]['nome']
+
+
+def converterlista(dicio):
+    '''(dicio) -> list
+    '''
+    lst = []
+    for k in dicio:
+        for i in range(6, len(dicio[k])):
+            aux = dicio[k][:2]
+            n, faixa = nota(dicio[k][i])
+            aux += [dicio[k][i], i-5, n, faixa]
+            lst += [aux]
+
+    return lst
+
+
+def nota(txt):
+    '''(str) -> list
+    '''
+    if txt == '':
+        return 'Não jogou', 0
+
+    lst = [-20, 0.0001, 4, 9, 17, 23, 100]
+    faixa = ['Negativou', 'Regular', 'Bem', 'Ótimo', 'Mitou', 'Nota 10']
+    txt = float(txt)
+
+    for i in range(0, len(lst)-1):
+        if lst[i] <= txt <= lst[i+1]:
+            return faixa[i], i+1
+
+
+
+    #CRIAR DICIONARIO
+    atletas = jogadores(txt)
+    dicionario = {}
+    for i in range(0, len(atletas)):
+        dicionario[atletas[i][0]] = atletas[i][1]
+
+    #ADICIONAR PONTUAÇÃO
+    for i in range(1, 39):
+
+        ind = []
+        for j in dicionario:
+            if len(dicionario[j]) not in ind:
+                ind += [len(dicionario[j])]
+        print(ind)
+
+        pontos = requests.get(f'https://api.cartolafc.globo.com/atletas/pontuados/{i}').json()
+        if len(pontos) == 1:
+            break
+        else:
+            pontos = pontos['atletas']
+            for codigo in pontos:
+                pontuacao = pontos[codigo]['pontuacao']
+                codigo = str(codigo)
+                if codigo in dicionario:
+                    dicionario[codigo] += [pontuacao]
+
+            for k in dicionario:
+                if len(dicionario[k]) < i+6:
+                    dicionario[k] += ['']
+
+    for k in dicionario:
+        jogos = 0
+        for i in range(5, len(dicionario[k])):
+            if dicionario[k][i] != '':
+                jogos += 1
+        dicionario[k][4] = jogos
+
+    for k in dicionario:
+        media = 0
+        for i in range(6, len(dicionario[k])):
+            if dicionario[k][i] != '':
+                media += int(dicionario[k][i])
+        if media == 0:
+            dicionario[k][5] = 0
+        else:
+            dicionario[k][5] = round(media/dicionario[k][4], 2)
+
+    planilha1(dicionario)
+    lista = converterlista(dicionario)
+    planilha2(lista)
+    print('Terminado')
